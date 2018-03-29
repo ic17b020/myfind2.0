@@ -16,6 +16,10 @@ static void do_file (const char * file_name, const char *const *parms);
 
 static void errmsg(int error_number, char *file_name);
 
+// Funktionen zum Checken der Parameter
+static void check_user_name(char *current_path, const char *user, struct stat current_entry);
+static void check_uid(char *current_path, int user_id, struct stat current_entry);
+
 int main(int argc, const char * argv[]) {
 
     //Deklarierung, Speicherallokierung und Initialisierung von parms exklusive Programmname -> ab Pfad
@@ -114,9 +118,34 @@ static void errmsg(int error_number, char *file_name)
     fprintf(stderr, "myfind: %s\t%s\n", strerror(error_number), file_name);
 }
 
-void check_user_uid(char *current_path, const char **parameters)
+// Funktion printet Fehler wenn Username nicht in "/etc/passwd" gefunden wird,
+// printet Pfad, wenn Parameter-User mit User von current_entry übereinstimmen
+static void check_user_name(char *current_path, const char *user, struct stat current_entry)
 {
+    struct passwd *popt;
+    if(getpwnam(user)!=0)
+    {
+        popt = getpwnam(user);
+        if(popt->pw_uid == current_entry.st_uid)
+        {
+            printf("%s\n", current_path);
+        }
+    }
+    else errmsg(errno, path);
+}
 
-
-
+// Funktion printet Fehler wenn User ID nicht in "/etc/passwd" gefunden wird,
+// printet Pfad, wenn Parameter-User ID mit User ID von current_entry übereinstimmen
+static void check_uid(char *current_path, int user_id, struct stat current_entry)
+{
+    struct passwd *popt;
+    if(getpwuid(user_id)!=0)
+    {
+        popt = getpwuid(user_id);
+        if(popt->pw_uid == current_entry.st_uid)
+        {
+            printf("%s\n", current_path);
+        }
+    }
+    else errmsg(errno, path);
 }
