@@ -111,5 +111,12 @@ static void do_file (const char * file_name, const char *const *parms)
 //Funktion gibt Standard-error von errno aus und wo error aufgetreten ist (path)
 static void errmsg(int error_number, char *file_name)
 {
-  fprintf(stderr, "myfind: %s\t%s\n", strerror(error_number), file_name);
+    fprintf(stderr, "myfind: %s\t%s\n", strerror(error_number), file_name);
+}
+
+void check_user_uid(char *current_path, const char **parameters)
+{
+
+
+
 }
