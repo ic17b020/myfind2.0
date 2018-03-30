@@ -9,6 +9,19 @@
 #include <pwd.h>
 
 
+// folgende "includes" sollten hinzugefügt werden, um die Funktionsweise
+// von print_ls und nouser (siehe prototypes) zu gewährleisten
+
+// ----------------------
+#include <time.h>
+#include <limits.h>
+#include <grp.h>
+#include <locale.h>
+#include <langinfo.h>
+#include <stdint.h>
+// ----------------------
+
+
 static void pparameter(const char **arguments, const char ** parameters, int argument_count);
 
 static void do_dir (const char * file_name, const char * const *parms);
@@ -19,6 +32,16 @@ static void errmsg(int error_number, char *file_name);
 // Funktionen zum Checken der Parameter
 static void check_user_name(char *current_path, const char *user, struct stat current_entry);
 static void check_uid(char *current_path, int user_id, struct stat current_entry);
+
+// Funktionen für die Aktionen "-ls" und "-nouser"
+// Diese sollten nach entsprechendem Parametervergleich in do_file aufgerufen werden
+// Der Aufruf von print_ls sollte in der Form: print_ls(filename, curentry);  erfolgen
+// Der Aufruf von nouser sollte in der Form: nouser(filename, curentry);  erfolgen
+
+static void print_ls(const char *filename, const struct stat sb);
+static void nouser(const char *filename, const struct stat sb);
+
+static void check_type(char *current_path, const char *type, struct stat current_entry);
 
 int main(int argc, const char * argv[]) {
 
@@ -97,7 +120,6 @@ static void do_dir (const char * file_name, const char * const *parms)
 }
 
 
-
 static void do_file (const char * file_name, const char *const *parms)
 {
     //    wird derzeit nur zum pruefen der Funktion verwendet; diese "printf" wird in weiterer Folge geloescht werden, da die -print Aktion bereits besteht
@@ -151,6 +173,113 @@ static void check_uid(char *current_path, char *userID, struct stat current_entr
     }
     else errmsg(errno, path);
 }
+
+// Funktionen für die Aktionen "-ls" und "-nouser"
+// Diese sollten nach entsprechendem Parametervergleich in do_file aufgerufen werden
+// Der Aufruf von print_ls sollte in der Form: print_ls(filename, curentry);  erfolgen
+// Der Aufruf von nouser sollte in der Form: nouser(filename, curentry);  erfolgen
+
+static void print_ls(const char *filename, const struct stat sb) {
+    
+    struct passwd  *pwd;
+    struct group   *grp;
+    
+    char * user;
+    char * group;
+    char permis[30];
+ 
+    strcpy(permis, (S_ISDIR(sb.st_mode)) ? "d" : "-");
+    strcat(permis, (sb.st_mode & S_IRUSR) ? "r" : "-");
+    strcat(permis, (sb.st_mode & S_IWUSR) ? "w" : "-");
+    strcat(permis, (sb.st_mode & S_IXUSR) ? "x" : "-");
+    
+    strcat(permis, (sb.st_mode & S_IRGRP) ? "r" : "-");
+    strcat(permis, (sb.st_mode & S_IWGRP) ? "w" : "-");
+    strcat(permis, (sb.st_mode & S_IXGRP) ? "x" : "-");
+    strcat(permis, (sb.st_mode & S_IROTH) ? "r" : "-");
+    strcat(permis, (sb.st_mode & S_IWOTH) ? "w" : "-");
+    strcat(permis, (sb.st_mode & S_IXOTH) ? "x" : "-");
+        
+
+    grp = getgrgid(sb.st_gid);
+    pwd = getpwuid(sb.st_uid);
+ 
+   
+    if (pwd == NULL) {
+        user = alloca(10);
+       snprintf(user, 10, "%u", sb.st_uid);
+      } else {
+        user = pwd->pw_name;
+    }
+    
+    
+    if (grp == NULL) {
+        group = alloca(10);
+        snprintf(group, 10, "%u", sb.st_gid);
+    } else {
+        group = grp->gr_name;
+    }
+
+   
+    char *p;
+    p = ctime(&sb.st_ctime);
+    p += 3;
+    
+    //----------------sym-link vorarbeiten----------------------------------//
+    
+    char *symlink = NULL;
+    ssize_t r, bsize;
+    bsize = sb.st_size +1;
+    
+    if (S_ISLNK(sb.st_mode)!= 0) {
+        if (sb.st_size == 0)
+            bsize = PATH_MAX;
+        symlink = malloc(sizeof(char) * bsize);
+        if (symlink == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+        
+
+        while ((r = readlink(filename, symlink, bsize)) > 1 && (r > bsize)) {
+            bsize *= 2;
+            if ((symlink = realloc(symlink, sizeof(char) * bsize)) == NULL) {
+                fprintf(stderr,"Not enough memory to continue\n");
+                exit(EXIT_FAILURE);
+            }
+
+        }
+        if (r == -1) {
+            perror("readlink");
+            exit(EXIT_FAILURE);
+        }
+
+
+        symlink[r] = '\0';
+}
+
+      //--------------------------------------------------//
+    
+  
+    
+  printf("   %llu %2lld %s %4d  %s %s %5jd %.13s %s %s %s \n",  sb.st_ino,  (long long) sb.st_blocks, permis, sb.st_nlink,  
+  user, group,   
+  (intmax_t)sb.st_size, p, filename, ((S_ISLNK(sb.st_mode)!= 0) ? "->" : ""),
+           ((S_ISLNK(sb.st_mode)!= 0)? symlink : ""));  
+ }
+ 
+ //Funktion überprüft ob es einen User gibt der mit der numerischen User-ID eines files übereinstimmt
+ 
+static void nouser(const char *filename, const struct stat sb) {
+    
+    struct passwd  *pwd;
+    pwd = getpwuid(sb.st_uid);
+ 
+   if ((pwd = getpwuid(sb.st_uid)) == NULL)
+   printf("Kein User entspricht der numerischen User-ID %d des Files: %s\n",sb.st_uid, filename);
+ }
+ 
+
 
 // Funktion überprüft Länge der Parameters zu -type,
 // Überprüfung ob der Dateityp vom current_entry dem eingegebenen type entspricht
