@@ -136,9 +136,11 @@ static void check_user_name(char *current_path, const char *user, struct stat cu
 
 // Funktion printet Fehler wenn User ID nicht in "/etc/passwd" gefunden wird,
 // printet Pfad, wenn Parameter-User ID mit User ID von current_entry übereinstimmen
-static void check_uid(char *current_path, int user_id, struct stat current_entry)
+static void check_uid(char *current_path, char *userID, struct stat current_entry)
 {
     struct passwd *popt;
+    int user_id = atoi(userID);
+
     if(getpwuid(user_id)!=0)
     {
         popt = getpwuid(user_id);
@@ -148,4 +150,26 @@ static void check_uid(char *current_path, int user_id, struct stat current_entry
         }
     }
     else errmsg(errno, path);
+}
+
+// Funktion überprüft Länge der Parameters zu -type,
+// Überprüfung ob der Dateityp vom current_entry dem eingegebenen type entspricht
+// wenn ja, dann printf vom current_path
+static void check_type(char *current_path, const char *type, struct stat current_entry)
+{
+    if(strlen(type)!= 1) printf("UNGÜLTIGE EINGABE");
+    else
+    {
+        switch(type[0])
+        {
+            case 'b': if(S_ISBLK(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 'c': if(S_ISCHR(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 'd': if(S_ISDIR(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 'p': if(S_ISFIFO(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 'f': if(S_ISREG(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 'l': if(S_ISLNK(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 's': if(S_ISSOCK(current_entry.st_mode)) printf("%s\n", current_path); break;
+            default: printf("Dateityp existiert nicht"); break;
+        }
+    }
 }
