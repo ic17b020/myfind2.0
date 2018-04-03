@@ -119,6 +119,7 @@ static void do_dir (const char * file_name, const char * const *parms)
         
     }
     
+    closedir(curdir);
     
 }
 
