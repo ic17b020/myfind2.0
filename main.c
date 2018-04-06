@@ -256,7 +256,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
 /**
  *\name NOCH ZU BEARBEITEN!!!
  *
- *\brief
+ *\brief Errormessage 
  *
  *\param
  *\param
@@ -270,6 +270,7 @@ static void errmsg(char *file_name)
 {
     fprintf(stderr, "myfind: %s\t%s\n", strerror(errno), file_name);
 }
+
 
 
 
