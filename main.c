@@ -37,12 +37,12 @@ static int pdim;
 /* ------------------------------  function prototypes ----------------------- */
 
 static void pparameter(const char **arguments, const char ** parameters, int argument_count);
-static void errmsg(char *file_name);
+/*static void errmsg(char *file_name);*/
 
 static void do_dir (const char * file_name, const char * const *parms, int pdim);
 static void do_file (const char * file_name, const char *const *parms, const char *curname, int pdim);
 
-static int check_user(const char *current_path, const char *user, struct stat current_entry);
+static int check_user(const char *user, struct stat current_entry);
 static void print_ls(const char *filename, const struct stat sb);
 static int nouser(const struct stat sb);
 static int check_namepath (const char *pattern, const char *string, const char *printpath);
@@ -239,11 +239,11 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         {
             if((i+1)>(pdim-1))
             {
-                fprintf("ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
+                fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(EXIT_FAILURE);
             }
 
-            if (check_user(file_name, parms[i+1], curentry))
+            if (check_user(parms[i+1], curentry))
             {
                 print = 1;
                 i++;
@@ -264,7 +264,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         {
             if((i+1)>(pdim-1))
             {
-                fprintf("ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
+                fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(EXIT_FAILURE);
             }
 
@@ -291,7 +291,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         else
         {
             printf("Unbekannter Parameter \"%s\"! Programm wurde beendet.\n", parms[i]);
-            exit(0);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -315,12 +315,12 @@ static void do_file (const char * file_name, const char *const *parms, const cha
  *\retval
  */
 
-
+/*
  static void errmsg(char *file_name)
 
      fprintf(stderr, "%s: %s\t%s\n", prog_name, strerror(errno), file_name);
  }
-
+*/
 
 
 
@@ -336,7 +336,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
  *\retval
  *\retval
  */
-static int check_user(const char *current_path, const char *user, struct stat current_entry)
+static int check_user(const char *user, struct stat current_entry)
 {
     unsigned long int uid;
     char *ptemp;
@@ -356,7 +356,7 @@ static int check_user(const char *current_path, const char *user, struct stat cu
             if(uid == current_entry.st_uid) x = 1;
             if(getpwuid(uid) == NULL)
             {
-                fprintf(stderr, "ERROR\n");
+                fprintf(stderr, "ERROR: %s: FEHLER\n", prog_name);
                 exit(EXIT_FAILURE);
             }
         }
@@ -461,7 +461,7 @@ static void print_ls(const char *filename, const struct stat sb) {
 
 
 
-    printf("   %llu %2lld %s %4d  %s %s %5jd %.13s %s %s %s \n",  sb.st_ino,  (long long) sb.st_blocks, permis, sb.st_nlink,
+    printf("   %ld %2lld %s %4d  %s %s %5jd %.13s %s %s %s \n",  sb.st_ino,  (long long) sb.st_blocks, permis, sb.st_nlink,
            user, group,
            (intmax_t)sb.st_size, p, filename, ((S_ISLNK(sb.st_mode)!= 0) ? "->" : ""),
            ((S_ISLNK(sb.st_mode)!= 0)? symlink : ""));
@@ -510,7 +510,7 @@ static int check_type(const char *current_path, const char *type, struct stat cu
 
     if(strlen(type)!= 1)
     {
-        printf("\nERROR: Argument is too long - %s\n", current_path);
+        fprintf(stderr, "\nERROR: %s: Argument is too long - %s\n", prog_name, current_path);
     }
     else
     {
@@ -523,7 +523,7 @@ static int check_type(const char *current_path, const char *type, struct stat cu
             case 'f': if(S_ISREG(current_entry.st_mode)) x = 1; break;
             case 'l': if(S_ISLNK(current_entry.st_mode)) x = 1; break;
             case 's': if(S_ISSOCK(current_entry.st_mode)) x = 1; break;
-            default: printf("\nERROR: %s - %s\n", strerror(errno), current_path); exit(EXIT_FAILURE);
+            default: fprintf(stderr,"\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), current_path); exit(EXIT_FAILURE);
         }
     }
 
