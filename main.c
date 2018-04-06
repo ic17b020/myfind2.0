@@ -457,7 +457,6 @@ static int check_type(const char *current_path, const char *type, struct stat cu
     if(strlen(type)!= 1)
     {
         printf("\nERROR: Argument is too long - %s\n", current_path);
-        exit(1);
     }
     else
     {
