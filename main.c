@@ -293,27 +293,22 @@ static int check_user(char *current_path, const char *user, struct stat current_
 
     struct passwd *popt = getpwnam(user);
 
-
     if(popt != NULL)
     {
         if(popt->pw_uid == current_entry.st_uid) x = 1;
-        else
+    }
+    else
+    {
+        uid = strtoul(user, &ptemp, 10);
+        if(*ptemp == '\0')
         {
-            uid = strtoul(user, &ptemp, 10);
-            if(*ptemp == '\0')
-            {
-              if(uid == current_entry.st_uid) x = 1;
-            }
+            if(uid == current_entry.st_uid) x = 1;
+            if(getpwuid(uid) == NULL) prinf("FEHLER\n");
         }
     }
-    return x;
-    else printf("ERROR") /* Fehlerbehandlung falls petpwnam nicht funktioniert hat, errno ansehen */
-}
 
-// Funktionen für die Aktionen "-ls" und "-nouser"
-// Diese sollten nach entsprechendem Parametervergleich in do_file aufgerufen werden
-// Der Aufruf von print_ls sollte in der Form: print_ls(filename, curentry);  erfolgen
-// Der Aufruf von nouser sollte in der Form: nouser(filename, curentry);  erfolgen
+    return x;
+}
 
 /**
  *\name
