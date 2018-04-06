@@ -8,12 +8,6 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <fnmatch.h>
-
-
-// folgende "includes" sollten hinzugefügt werden, um die Funktionsweise
-// von print_ls und nouser (siehe prototypes) zu gewährleisten
-
-// ----------------------
 #include <time.h>
 #include <limits.h>
 #include <grp.h>
@@ -22,17 +16,16 @@
 #include <stdint.h>
 // ----------------------
 
-
 static void pparameter(const char **arguments, const char ** parameters, int argument_count);
 
-static void do_dir (const char * file_name, const char * const *parms);
-static void do_file (const char * file_name, const char *const *parms, const char *curname);
+static void do_dir (const char * file_name, const char * const *parms, int pdim);
+static void do_file (const char * file_name, const char *const *parms, const char *curname, int pdim);
 
 static void errmsg(int error_number, char *file_name);
 
 // Funktionen zum Checken der Parameter
 static void check_user_name(char *current_path, const char *user, struct stat current_entry);
-static void check_uid(char *current_path, int user_id, struct stat current_entry);
+static void check_uid(char *current_path, const char *user_id, struct stat current_entry);
 
 // Funktionen für die Aktionen "-ls" und "-nouser"
 // Diese sollten nach entsprechendem Parametervergleich in do_file aufgerufen werden
@@ -40,13 +33,14 @@ static void check_uid(char *current_path, int user_id, struct stat current_entry
 // Der Aufruf von nouser sollte in der Form: nouser(filename, curentry);  erfolgen
 
 static void print_ls(const char *filename, const struct stat sb);
-static void nouser(const char *filename, const struct stat sb);
+static int nouser(const char *filename, const struct stat sb);
 
-static void check_name (char *pattern, char *string, char *printpath);
+static int check_namepath (const char *pattern, const char *string, const char *printpath);
 
-static void check_type(char *current_path, const char *type, struct stat current_entry);
+static int check_type(const char *current_path, const char *type, struct stat current_entry);
 
 int main(int argc, const char * argv[]) {
+    
     
     //Deklarierung, Speicherallokierung und Initialisierung von parms exklusive Programmname -> ab Pfad
     const char **parms;
@@ -58,7 +52,7 @@ int main(int argc, const char * argv[]) {
     strcpy(path, parms[0]);
     
     //    aufrufen der Funktion do_dir mit dem uebergebenen Pfad und parms (derzeit unwichtig)
-    do_dir(path, parms);
+    do_dir(path, parms, argc-1);
     
     //Freigeben von allokiertem Speicher
     free(parms);
@@ -77,7 +71,7 @@ static void pparameter(const char ** arguments, const char ** parameters, int ar
     }
 }
 
-static void do_dir (const char * file_name, const char * const *parms)
+static void do_dir (const char * file_name, const char * const *parms, int pdim)
 {
     //    oeffnet den Directory Stream fuer das aktuelle Verzeichnis
     DIR *curdir = opendir(file_name);
@@ -115,7 +109,7 @@ static void do_dir (const char * file_name, const char * const *parms)
         strcat(newpath, curstruct->d_name);
         
         //        do_file() wird mit dem aktuellsten Pfad (newpath) aufgerufen
-        do_file(newpath, parms, curstruct->d_name);
+        do_file(newpath, parms, curstruct->d_name, pdim);
         
     }
     
@@ -124,17 +118,80 @@ static void do_dir (const char * file_name, const char * const *parms)
 }
 
 
-static void do_file (const char * file_name, const char *const *parms, const char *curname)
+static void do_file (const char * file_name, const char *const *parms, const char *curname, int pdim)
 {
-    //    wird derzeit nur zum pruefen der Funktion verwendet; diese "printf" wird in weiterer Folge geloescht werden, da die -print Aktion bereits besteht
-    printf("%s\n", file_name);
-    
+    //Struct vom Typ "stat" wird erstellt und mit dem Output von lstat() befuellt
     struct stat curentry;
     
     lstat(file_name, &curentry);
     
+    int i = 0;
+    int print = 0;
+    
+    for(i=1; i<pdim; i++)
+    {
+        if(strcmp(parms[i],"-name")==0)
+        {
+            if (check_namepath(parms[i+1], curname, file_name))
+            {
+                print = 1;
+                i++;
+            }
+            else {print = 0; break;}
+        }
+        
+        else if(strcmp(parms[i],"-path")==0)
+        {
+            if (check_namepath(parms[i+1], file_name, file_name))
+            {
+                print = 1;
+                i++;
+            }
+            else {print = 0; break;}
+        }
+        
+        else if(strcmp(parms[i],"-nouser")==0)
+        {
+            if (nouser(file_name, curentry))
+            {
+                print = 1;
+            }
+            else {print = 0; break;}
+        }
+        
+        else if(strcmp(parms[i],"-type")==0)
+        {
+            if (check_type(file_name, parms[i+1], curentry))
+            {
+                print = 1;
+                i++;
+            }
+            else {print = 0; break;}
+        }
+        
+        else if(strcmp(parms[i],"-ls")==0)
+        {
+            print_ls(file_name, curentry);
+            print = 0;
+        }
+        
+        else if(strcmp(parms[i], "-print")==0)
+        {
+            printf("%s\n", file_name);
+            print = 0;
+        }
+        
+        else
+        {
+            printf("Unbekannter Parameter \"%s\"! Programm wurde beendet.\n", parms[i]);
+            exit(0);
+        }
+    }
+    
+    if(print || (pdim == 1)) printf("%s\n", file_name);
+    
     //    ueberprueft, ob es sich bei dem aktuellen Eintrag um ein Directory handelt; falls ja wird do_dir() mit dem aktuellen Pfad aufgerufen
-    if(S_ISDIR(curentry.st_mode)) do_dir(file_name, parms);
+    if(S_ISDIR(curentry.st_mode)) do_dir(file_name, parms, pdim);
     
 }
 
@@ -157,12 +214,12 @@ static void check_user_name(char *current_path, const char *user, struct stat cu
             printf("%s\n", current_path);
         }
     }
-    else errmsg(errno, path);
+    else errmsg(errno, current_path);
 }
 
 // Funktion printet Fehler wenn User ID nicht in "/etc/passwd" gefunden wird,
 // printet Pfad, wenn Parameter-User ID mit User ID von current_entry übereinstimmen
-static void check_uid(char *current_path, char *userID, struct stat current_entry)
+static void check_uid(char *current_path, const char *userID, struct stat current_entry)
 {
     struct passwd *popt;
     int user_id = atoi(userID);
@@ -175,7 +232,7 @@ static void check_uid(char *current_path, char *userID, struct stat current_entr
             printf("%s\n", current_path);
         }
     }
-    else errmsg(errno, path);
+    else errmsg(errno, current_path);
 }
 
 // Funktionen für die Aktionen "-ls" und "-nouser"
@@ -266,21 +323,21 @@ static void print_ls(const char *filename, const struct stat sb) {
     
     
     
-    printf("   %llu %2lld %s %4d  %s %s %5jd %.13s %s %s %s \n",  sb.st_ino,  (long long) sb.st_blocks, permis, sb.st_nlink,  
-           user, group,   
+    printf("   %llu %2lld %s %4d  %s %s %5jd %.13s %s %s %s \n",  sb.st_ino,  (long long) sb.st_blocks, permis, sb.st_nlink,
+           user, group,
            (intmax_t)sb.st_size, p, filename, ((S_ISLNK(sb.st_mode)!= 0) ? "->" : ""),
-           ((S_ISLNK(sb.st_mode)!= 0)? symlink : ""));  
+           ((S_ISLNK(sb.st_mode)!= 0)? symlink : ""));
 }
 
 //Funktion überprüft ob es einen User gibt der mit der numerischen User-ID eines files übereinstimmt
 
-static void nouser(const char *filename, const struct stat sb) {
+static int nouser(const char *filename, const struct stat sb) {
     
     struct passwd  *pwd;
     pwd = getpwuid(sb.st_uid);
     
-    if ((pwd = getpwuid(sb.st_uid)) == NULL)
-        printf("Kein User entspricht der numerischen User-ID %d des Files: %s\n",sb.st_uid, filename);
+    if ((pwd = getpwuid(sb.st_uid)) == NULL) return 1;
+    else return 0;
 }
 
 
@@ -288,34 +345,46 @@ static void nouser(const char *filename, const struct stat sb) {
 // Funktion überprüft Länge der Parameters zu -type,
 // Überprüfung ob der Dateityp vom current_entry dem eingegebenen type entspricht
 // wenn ja, dann printf vom current_path
-static void check_type(char *current_path, const char *type, struct stat current_entry)
+static int check_type(const char *current_path, const char *type, struct stat current_entry)
 {
+    int x = 0;
+    
     if(strlen(type)!= 1) printf("UNGÜLTIGE EINGABE");
     else
     {
         switch(type[0])
         {
-            case 'b': if(S_ISBLK(current_entry.st_mode)) printf("%s\n", current_path); break;
-            case 'c': if(S_ISCHR(current_entry.st_mode)) printf("%s\n", current_path); break;
-            case 'd': if(S_ISDIR(current_entry.st_mode)) printf("%s\n", current_path); break;
-            case 'p': if(S_ISFIFO(current_entry.st_mode)) printf("%s\n", current_path); break;
-            case 'f': if(S_ISREG(current_entry.st_mode)) printf("%s\n", current_path); break;
-            case 'l': if(S_ISLNK(current_entry.st_mode)) printf("%s\n", current_path); break;
-            case 's': if(S_ISSOCK(current_entry.st_mode)) printf("%s\n", current_path); break;
+            case 'b': if(S_ISBLK(current_entry.st_mode)) x = 1; break;
+            case 'c': if(S_ISCHR(current_entry.st_mode)) x = 1; break;
+            case 'd': if(S_ISDIR(current_entry.st_mode)) x = 1; break;
+            case 'p': if(S_ISFIFO(current_entry.st_mode)) x = 1; break;
+            case 'f': if(S_ISREG(current_entry.st_mode)) x = 1; break;
+            case 'l': if(S_ISLNK(current_entry.st_mode)) x = 1; break;
+            case 's': if(S_ISSOCK(current_entry.st_mode)) x = 1; break;
+                //                hier wäre wohl ein Programmabbruch notwendig!!
             default: printf("Dateityp existiert nicht"); break;
         }
     }
+    
+    return x;
 }
 
-//Funktion ueberprueft, ob der Name des derzeitigen Eintrages mit dem Muster, welches mit "-name" uebergeben wurde, zusammenpasst; falls ja, wird der aktuelle Pfad ausgegeben
-static void check_name (char *pattern, char *string, char *printpath)
+//Funktion ueberprueft, ob der Name oder Pfad des derzeitigen Eintrages mit dem Muster, welches mit "-name" oder "-path" uebergeben wurde, zusammenpasst; falls ja, wird 1 fuer "wahr" zurückgegeben
+static int check_namepath (const char *pattern, const char *string, const char *printpath)
 {
-    if (fnmatch(pattern, string, FNM_NOESCAPE) == 0) printf("%s\n", printpath);
+    int x = fnmatch(pattern, string, FNM_NOESCAPE);
     
     //  Errorcheck fuer fnmatch()
     if (errno != 0)
     {
-        printf("\nERROR: %s - %s\n", strerror(errno), file_name);
+        printf("\nERROR: %s - %s\n", strerror(errno), printpath);
         errno = 0;
     }
+    
+    if (x == 0) return 1;
+    else return 0;
 }
+
+
+
+
