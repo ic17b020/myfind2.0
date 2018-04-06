@@ -44,7 +44,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
 
 static int check_user(const char *current_path, const char *user, struct stat current_entry);
 static void print_ls(const char *filename, const struct stat sb);
-static int nouser(const char *filename, const struct stat sb);
+static int nouser(const struct stat sb);
 static int check_namepath (const char *pattern, const char *string, const char *printpath);
 static int check_type(const char *current_path, const char *type, struct stat current_entry);
 
@@ -55,7 +55,7 @@ static int check_type(const char *current_path, const char *type, struct stat cu
  *
  *\param argc number of passed arguments
  *\param argv pointer to those passed arguments
- *
+ *exit(EXIT_FAILURE)
  *\return Returns EXIT_SUCCESS if successfully; otherwise EXIT_FAILURE.
  *\retval EXIT_SUCCESS
  *\retval EXIT_FAILURE
@@ -71,7 +71,7 @@ int main(int argc, const char * argv[]) {
   if(pdim < 1)
   {
     fprintf(stderr, "\nERROR: %s: Not enough parameters\n", prog_name);
-    return EXIT_FAILURE;
+    exit(EXIT_FAILURE);
   }
 
   /* Pass arguments to parms for do_file */
@@ -80,7 +80,7 @@ int main(int argc, const char * argv[]) {
   if(parms == NULL)
   {
   fprintf(stderr, "\nERROR: %s: %s\n", prog_name, strerror(errno));
-  return EXIT_FAILURE;
+  exit(EXIT_FAILURE);
   }
   pparameter(argv, parms, argc);
 
@@ -141,7 +141,7 @@ static void do_dir (const char * file_name, const char * const *parms, int pdim)
     /* checks if opdendir() did not result in an error */
     if (errno != 0)
     {
-        printf("\nERROR: %s - %s\n", strerror(errno), file_name);
+        fprintf(stderr, "\nERROR: %s: %s - %s\n", prog_name, strerror(errno), file_name);
         errno = 0;
     }
 
@@ -154,7 +154,7 @@ static void do_dir (const char * file_name, const char * const *parms, int pdim)
         /* checks if readdir() did not result in an error */
         if (errno != 0)
         {
-            printf("\nERROR: %s - %s\n", strerror(errno), file_name);
+            fprintf(stderr, "\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), file_name);
             errno = 0;
         }
 
@@ -207,7 +207,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         {
             if((i+1)>(pdim-1))
             {
-                printf("ERROR: \"%s\" requires attribute.", parms[i]);
+                fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(1);
             }
 
@@ -223,8 +223,8 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         {
             if((i+1)>(pdim-1))
             {
-                printf("ERROR: \"%s\" requires attribute.", parms[i]);
-                EXIT_FAILURE;
+                fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
+                exit(EXIT_FAILURE);
             }
 
             if (check_namepath(parms[i+1], file_name, file_name))
@@ -239,8 +239,8 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         {
             if((i+1)>(pdim-1))
             {
-                printf("ERROR: \"%s\" requires attribute.", parms[i]);
-                EXIT_FAILURE;
+                fprintf("ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
+                exit(EXIT_FAILURE);
             }
 
             if (check_user(file_name, parms[i+1], curentry))
@@ -253,7 +253,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
 
         else if(strcmp(parms[i],"-nouser")==0)
         {
-            if (nouser(file_name, curentry))
+            if (nouser(curentry))
             {
                 print = 1;
             }
@@ -264,8 +264,8 @@ static void do_file (const char * file_name, const char *const *parms, const cha
         {
             if((i+1)>(pdim-1))
             {
-                printf("ERROR: \"%s\" requires attribute.", parms[i]);
-                EXIT_FAILURE;
+                fprintf("ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
+                exit(EXIT_FAILURE);
             }
 
             if (check_type(file_name, parms[i+1], curentry))
@@ -315,8 +315,9 @@ static void do_file (const char * file_name, const char *const *parms, const cha
  *\retval
  */
 
+
  static void errmsg(char *file_name)
- {
+
      fprintf(stderr, "%s: %s\t%s\n", prog_name, strerror(errno), file_name);
  }
 
@@ -355,8 +356,8 @@ static int check_user(const char *current_path, const char *user, struct stat cu
             if(uid == current_entry.st_uid) x = 1;
             if(getpwuid(uid) == NULL)
             {
-                printf("Hier Fehlermeldung einfügen.\n");
-                EXIT_FAILURE;
+                fprintf(stderr, "ERROR\n");
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -481,7 +482,7 @@ static void print_ls(const char *filename, const struct stat sb) {
  *\retval
  */
 
-static int nouser(const char *filename, const struct stat sb) {
+static int nouser(const struct stat sb) {
 
     struct passwd  *pwd;
     pwd = getpwuid(sb.st_uid);
@@ -522,7 +523,7 @@ static int check_type(const char *current_path, const char *type, struct stat cu
             case 'f': if(S_ISREG(current_entry.st_mode)) x = 1; break;
             case 'l': if(S_ISLNK(current_entry.st_mode)) x = 1; break;
             case 's': if(S_ISSOCK(current_entry.st_mode)) x = 1; break;
-            default: printf("\nERROR: %s - %s\n", strerror(errno), current_path); return EXIT_FAILURE;
+            default: printf("\nERROR: %s - %s\n", strerror(errno), current_path); exit(EXIT_FAILURE);
         }
     }
 
@@ -548,7 +549,7 @@ static int check_namepath (const char *pattern, const char *string, const char *
     //  Errorcheck fuer fnmatch()
     if (errno != 0)
     {
-        printf("\nERROR: %s - %s\n", strerror(errno), printpath);
+        fprintf(stderr, "\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), printpath);
         errno = 0;
     }
 
