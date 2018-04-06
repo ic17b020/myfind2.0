@@ -39,8 +39,8 @@ static int pdim;
 static void pparameter(const char **arguments, const char ** parameters, int argument_count);
 /*static void errmsg(char *file_name);*/
 
-static void do_dir (const char * file_name, const char * const *parms, int pdim);
-static void do_file (const char * file_name, const char *const *parms, const char *curname, int pdim);
+static void do_dir (const char * dirname, const char * const *parms);
+static void do_file (const char * file_name, const char *const *parms, const char *curname);
 
 static int check_user(const char *user, struct stat current_entry);
 static void print_ls(const char *filename, const struct stat sb);
@@ -62,40 +62,40 @@ static int check_type(const char *current_path, const char *type, struct stat cu
  */
 
 int main(int argc, const char * argv[]) {
-
-  /* Initialize prog_name with argv[0] */
-  prog_name = argv[0];
-
-  /* Initialize parameter-dimension pdim and check if enough parameters were passed, else EXIT_FAILURE */
-  pdim = argc - 1;
-  if(pdim < 1)
-  {
-    fprintf(stderr, "\nERROR: %s: Not enough parameters\n", prog_name);
-    exit(EXIT_FAILURE);
-  }
-
-  /* Pass arguments to parms for do_file */
-  const char **parms;
-  parms = malloc(sizeof(char*) * (argc -1));
-  if(parms == NULL)
-  {
-  fprintf(stderr, "\nERROR: %s: %s\n", prog_name, strerror(errno));
-  exit(EXIT_FAILURE);
-  }
-  pparameter(argv, parms, argc);
-
-  /* Pass filepath from parms to path */
-  char path[strlen(parms[0])];
-  strcpy(path, parms[0]);
-
-  //    aufrufen der Funktion do_dir mit dem uebergebenen Pfad und parms (derzeit unwichtig)
-  do_dir(path, parms, argc-1);
-
-  /* Free allocated memory */
-  free(parms);
-
-  return EXIT_SUCCESS;
-
+    
+    /* Initialize prog_name with argv[0] */
+    prog_name = argv[0];
+    
+    /* Initialize parameter-dimension pdim and check if enough parameters were passed, else EXIT_FAILURE */
+    pdim = argc - 1;
+    if(pdim < 1)
+    {
+        fprintf(stderr, "\nERROR: %s: Not enough parameters\n", prog_name);
+        exit(EXIT_FAILURE);
+    }
+    
+    /* Pass arguments to parms for do_file */
+    const char **parms;
+    parms = malloc(sizeof(char*) * (argc -1));
+    if(parms == NULL)
+    {
+        fprintf(stderr, "\nERROR: %s: %s\n", prog_name, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    pparameter(argv, parms, argc);
+    
+    /* Pass filepath from parms to path */
+    char path[strlen(parms[0])];
+    strcpy(path, parms[0]);
+    
+    //    aufrufen der Funktion do_dir mit dem uebergebenen Pfad und parms (derzeit unwichtig)
+    do_dir(path, parms);
+    
+    /* Free allocated memory */
+    free(parms);
+    
+    return EXIT_SUCCESS;
+    
 }
 
 /**
@@ -113,11 +113,11 @@ int main(int argc, const char * argv[]) {
 static void pparameter(const char ** arguments, const char ** parameters, int argument_count)
 {
     int i;
-
+    
     for(i = 0; i < argument_count; i++)
     {
         parameters[i] = arguments[i + 1];
-
+        
     }
 }
 
@@ -133,49 +133,49 @@ static void pparameter(const char ** arguments, const char ** parameters, int ar
  *\return void function does not have a return value
  */
 
-static void do_dir (const char * file_name, const char * const *parms, int pdim)
+static void do_dir (const char * dir_name, const char * const *parms)
 {
     /* opens directory stream for the current directory */
-    DIR *curdir = opendir(file_name);
-
+    DIR *curdir = opendir(dir_name);
+    
     /* checks if opdendir() did not result in an error */
     if (errno != 0)
     {
-        fprintf(stderr, "\nERROR: %s: %s - %s\n", prog_name, strerror(errno), file_name);
+        fprintf(stderr, "\nERROR: %s: %s - %s\n", prog_name, strerror(errno), dir_name);
         errno = 0;
     }
-
+    
     struct dirent *curstruct;
-
+    
     /* weist curstruct das aktuelle Ergebnis aus readdir() zu; solange readdir() keinen NULL-Pointer ausgibt wird der Anweisungsblock ausgefuehrt */
     while ((curstruct = readdir(curdir)))
-
+        
     {
         /* checks if readdir() did not result in an error */
         if (errno != 0)
         {
-            fprintf(stderr, "\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), file_name);
+            fprintf(stderr, "\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), dir_name);
             errno = 0;
         }
-
+        
         /* skips entrys named "." or ".." */
         if ((strcmp(curstruct->d_name, ".") == 0) || (strcmp(curstruct->d_name, "..") == 0) || (strcmp(curstruct->d_name, ".DS_Store") == 0))  continue;
-
+        
         /*        char newpath[] wird erstellt; die Dimenson wird mit der Laenge des bisherigen Pfades, der Laenge des Namens des aktuellen Eintrags plus einem weiteren Feld angegeben */
-        char newpath[(strlen(file_name))+(strlen(curstruct->d_name))+1];
-
+        char newpath[(strlen(dir_name))+(strlen(curstruct->d_name))+1];
+        
         /*        Dieses Konstrukt fuegt den aktuellen Pfad + "/" + den aktuell bearbeiteten Eintrag zusammen, sodass in newpath der neue, aktuellste Pfad gespeichert ist */
-        strcpy(newpath, file_name);
+        strcpy(newpath, dir_name);
         strcat(newpath, "/");
         strcat(newpath, curstruct->d_name);
-
+        
         /*        do_file() wird mit dem aktuellsten Pfad (newpath) aufgerufen */
-        do_file(newpath, parms, curstruct->d_name, pdim);
-
+        do_file(newpath, parms, curstruct->d_name);
+        
     }
-
+    
     closedir(curdir);
-
+    
 }
 
 /**
@@ -191,16 +191,16 @@ static void do_dir (const char * file_name, const char * const *parms, int pdim)
  *\return void function does not have a return value
  */
 
-static void do_file (const char * file_name, const char *const *parms, const char *curname, int pdim)
+static void do_file (const char * file_name, const char *const *parms, const char *curname)
 {
     //Struct vom Typ "stat" wird erstellt und mit dem Output von lstat() befuellt
     struct stat curentry;
-
+    
     lstat(file_name, &curentry);
-
+    
     int i = 0;
     int print = 0;
-
+    
     for(i=1; i<pdim; i++)
     {
         if(strcmp(parms[i],"-name")==0)
@@ -210,7 +210,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
                 fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(1);
             }
-
+            
             if (check_namepath(parms[i+1], curname, file_name))
             {
                 print = 1;
@@ -218,7 +218,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
             }
             else {print = 0; break;}
         }
-
+        
         else if(strcmp(parms[i],"-path")==0)
         {
             if((i+1)>(pdim-1))
@@ -226,7 +226,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
                 fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(EXIT_FAILURE);
             }
-
+            
             if (check_namepath(parms[i+1], file_name, file_name))
             {
                 print = 1;
@@ -234,7 +234,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
             }
             else {print = 0; break;}
         }
-
+        
         else if(strcmp(parms[i],"-user")==0)
         {
             if((i+1)>(pdim-1))
@@ -242,7 +242,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
                 fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(EXIT_FAILURE);
             }
-
+            
             if (check_user(parms[i+1], curentry))
             {
                 print = 1;
@@ -250,7 +250,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
             }
             else {print = 0; break;}
         }
-
+        
         else if(strcmp(parms[i],"-nouser")==0)
         {
             if (nouser(curentry))
@@ -259,7 +259,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
             }
             else {print = 0; break;}
         }
-
+        
         else if(strcmp(parms[i],"-type")==0)
         {
             if((i+1)>(pdim-1))
@@ -267,7 +267,7 @@ static void do_file (const char * file_name, const char *const *parms, const cha
                 fprintf(stderr, "ERROR: %s: \"%s\" requires attribute.", prog_name, parms[i]);
                 exit(EXIT_FAILURE);
             }
-
+            
             if (check_type(file_name, parms[i+1], curentry))
             {
                 print = 1;
@@ -275,31 +275,31 @@ static void do_file (const char * file_name, const char *const *parms, const cha
             }
             else {print = 0; break;}
         }
-
+        
         else if(strcmp(parms[i],"-ls")==0)
         {
             print_ls(file_name, curentry);
             print = 0;
         }
-
+        
         else if(strcmp(parms[i], "-print")==0)
         {
             printf("%s\n", file_name);
             print = 0;
         }
-
+        
         else
         {
             printf("Unbekannter Parameter \"%s\"! Programm wurde beendet.\n", parms[i]);
             exit(EXIT_FAILURE);
         }
     }
-
+    
     if(print || (pdim == 1)) printf("%s\n", file_name);
-
+    
     /* checks if current entry is a directory, if yes do_dir is called */
-    if(S_ISDIR(curentry.st_mode)) do_dir(file_name, parms, pdim);
-
+    if(S_ISDIR(curentry.st_mode)) do_dir(file_name, parms);
+    
 }
 
 /**
@@ -317,10 +317,10 @@ static void do_file (const char * file_name, const char *const *parms, const cha
 
 /*
  static void errmsg(char *file_name)
-
-     fprintf(stderr, "%s: %s\t%s\n", prog_name, strerror(errno), file_name);
+ 
+ fprintf(stderr, "%s: %s\t%s\n", prog_name, strerror(errno), file_name);
  }
-*/
+ */
 
 
 
@@ -341,9 +341,9 @@ static int check_user(const char *user, struct stat current_entry)
     unsigned long int uid;
     char *ptemp;
     int x = 0;
-
+    
     struct passwd *popt = getpwnam(user);
-
+    
     if(popt != NULL)
     {
         if(popt->pw_uid == current_entry.st_uid) x = 1;
@@ -361,7 +361,7 @@ static int check_user(const char *user, struct stat current_entry)
             }
         }
     }
-
+    
     return x;
 }
 
@@ -379,57 +379,57 @@ static int check_user(const char *user, struct stat current_entry)
  */
 
 static void print_ls(const char *filename, const struct stat sb) {
-
+    
     struct passwd  *pwd;
     struct group   *grp;
-
+    
     char * user;
     char * group;
     char permis[30];
-
+    
     strcpy(permis, (S_ISDIR(sb.st_mode)) ? "d" : "-");
     strcat(permis, (sb.st_mode & S_IRUSR) ? "r" : "-");
     strcat(permis, (sb.st_mode & S_IWUSR) ? "w" : "-");
     strcat(permis, (sb.st_mode & S_IXUSR) ? "x" : "-");
-
+    
     strcat(permis, (sb.st_mode & S_IRGRP) ? "r" : "-");
     strcat(permis, (sb.st_mode & S_IWGRP) ? "w" : "-");
     strcat(permis, (sb.st_mode & S_IXGRP) ? "x" : "-");
     strcat(permis, (sb.st_mode & S_IROTH) ? "r" : "-");
     strcat(permis, (sb.st_mode & S_IWOTH) ? "w" : "-");
     strcat(permis, (sb.st_mode & S_IXOTH) ? "x" : "-");
-
-
+    
+    
     grp = getgrgid(sb.st_gid);
     pwd = getpwuid(sb.st_uid);
-
-
+    
+    
     if (pwd == NULL) {
         user = alloca(10);
         snprintf(user, 10, "%u", sb.st_uid);
     } else {
         user = pwd->pw_name;
     }
-
-
+    
+    
     if (grp == NULL) {
         group = alloca(10);
         snprintf(group, 10, "%u", sb.st_gid);
     } else {
         group = grp->gr_name;
     }
-
-
+    
+    
     char *p;
     p = ctime(&sb.st_ctime);
     p += 3;
-
+    
     //----------------sym-link vorarbeiten----------------------------------//
-
+    
     char *symlink = NULL;
     ssize_t r, bsize;
     bsize = sb.st_size +1;
-
+    
     if (S_ISLNK(sb.st_mode)!= 0) {
         if (sb.st_size == 0)
             bsize = PATH_MAX;
@@ -438,29 +438,29 @@ static void print_ls(const char *filename, const struct stat sb) {
             perror("malloc");
             exit(EXIT_FAILURE);
         }
-
-
+        
+        
         while ((r = readlink(filename, symlink, bsize)) > 1 && (r > bsize)) {
             bsize *= 2;
             if ((symlink = realloc(symlink, sizeof(char) * bsize)) == NULL) {
                 fprintf(stderr,"Not enough memory to continue\n");
                 exit(EXIT_FAILURE);
             }
-
+            
         }
         if (r == -1) {
             perror("readlink");
             exit(EXIT_FAILURE);
         }
-
-
+        
+        
         symlink[r] = '\0';
     }
-
+    
     //--------------------------------------------------//
-
-
-
+    
+    
+    
     printf("   %ld %2lld %s %4d  %s %s %5jd %.13s %s %s %s \n",  sb.st_ino,  (long long) sb.st_blocks, permis, sb.st_nlink,
            user, group,
            (intmax_t)sb.st_size, p, filename, ((S_ISLNK(sb.st_mode)!= 0) ? "->" : ""),
@@ -483,10 +483,10 @@ static void print_ls(const char *filename, const struct stat sb) {
  */
 
 static int nouser(const struct stat sb) {
-
+    
     struct passwd  *pwd;
     pwd = getpwuid(sb.st_uid);
-
+    
     if ((pwd = getpwuid(sb.st_uid)) == NULL) return 1;
     else return 0;
 }
@@ -507,7 +507,7 @@ static int nouser(const struct stat sb) {
 static int check_type(const char *current_path, const char *type, struct stat current_entry)
 {
     int x = 0;
-
+    
     if(strlen(type)!= 1)
     {
         fprintf(stderr, "\nERROR: %s: Argument is too long - %s\n", prog_name, current_path);
@@ -526,7 +526,7 @@ static int check_type(const char *current_path, const char *type, struct stat cu
             default: fprintf(stderr,"\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), current_path); exit(EXIT_FAILURE);
         }
     }
-
+    
     return x;
 }
 
@@ -545,14 +545,14 @@ static int check_type(const char *current_path, const char *type, struct stat cu
 static int check_namepath (const char *pattern, const char *string, const char *printpath)
 {
     int x = fnmatch(pattern, string, FNM_NOESCAPE);
-
+    
     //  Errorcheck fuer fnmatch()
     if (errno != 0)
     {
         fprintf(stderr, "\nERROR: %s:  %s - %s\n", prog_name, strerror(errno), printpath);
         errno = 0;
     }
-
+    
     if (x == 0) return 1;
     else return 0;
 }
