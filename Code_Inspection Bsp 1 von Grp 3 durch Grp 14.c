@@ -74,7 +74,12 @@ static const char *PROG_NAME = "myfind_prog_name";
  *\retval EXIT_FAILURE
  */
 int main(int argc, const char *argv[]) {
-      
+    
+    /*
+     * ### FB: GRP14:   Hier wird überprüft, ob argv[0] leer bzw. NULL ist. Allerdings enthält argv[0] immer den Namen mit dem das
+     *                  Programm aufgerufen wurde. Daher die Frage, warum diese Überprüfung überhaupt gemacht wird bzw. wie argv[0]
+     *                  leer bzw. NULL sein könnte?
+     */
   if(!argv[0]){         /* Error handling - Invalid parameter */                     
     
     report_error("An error occurred. Invalid parameter in function main.", NULL);
