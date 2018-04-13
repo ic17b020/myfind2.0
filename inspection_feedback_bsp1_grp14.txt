@@ -1,0 +1,6 @@
+
+Übersichtlicher, detaillierter und gut auskommentierter Code. Anzahl der Fehler ist minimal ("return" in void Funktionen, sowie Ausgabe eines int statt eines const long unsigned int)
+
+Besonders positiv fällt die Verwendung der #defines auf, die unter anderem diejenigen Directories definieren ("." und "..“ ), deren mehrfaches Durchlaufen verhindert werden soll.
+
+Den Testdurchlauf aller Skripts auf annuminas hat das Programm ohne Probleme bestanden, auch dies ist auf den äußerst gut strukturierten Code zurückzuführen.
